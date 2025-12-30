@@ -1,0 +1,16 @@
+{% extends 'web/base.html' %}
+
+{% block title %}Profile - Document Verifier{% endblock %}
+
+{% block content %}
+<h1>User Profile</h1>
+<div>
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    {% if user.profile %}
+    <p><strong>Bio:</strong> {{ user.profile.bio }}</p>
+    <p><strong>Location:</strong> {{ user.profile.location }}</p>
+    <p><strong>Birth Date:</strong> {{ user.profile.birth_date }}</p>
+    {% endif %}
+</div>
+{% endblock %}
