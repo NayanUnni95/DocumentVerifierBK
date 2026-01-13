@@ -1,0 +1,3 @@
+[submodule "DocumentVerifier"]
+	path = DocumentVerifier
+	url = https://github.com/NayanUnni95/DocumentVerifier.git
