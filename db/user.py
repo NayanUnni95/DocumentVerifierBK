@@ -1,6 +1,6 @@
 from django.db import models
 
-from .base_db import BaseModel
+from db.base_db import CustomBaseModel, BaseCreatorModel, BaseUpdaterModel
 from utils.types import AffiliationType
 
 
@@ -13,7 +13,7 @@ def default_user_settings():
     }
 
 
-class User(BaseModel):
+class User(CustomBaseModel):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
@@ -24,7 +24,7 @@ class User(BaseModel):
         db_table = "user"
 
 
-class Affiliation(BaseModel):
+class Affiliation(BaseUpdaterModel):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -42,7 +42,7 @@ class Affiliation(BaseModel):
         db_table = "affiliation"
 
 
-class UserOAuthCredential(BaseModel):
+class UserOAuthCredential(BaseCreatorModel):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
