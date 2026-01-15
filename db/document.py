@@ -29,3 +29,4 @@ class Document(BaseUpdaterModel):
 
     class Meta:
         db_table = "document"
+        app_label = 'api'

@@ -40,18 +40,20 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
+    'rest_framework',
     # Allauth
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'api.apps.ApiConfig',
-    'rest_framework',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -152,3 +154,20 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     }
 }
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'utils.jwt_util.JWTUtil',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
+
+CORS_ALLOW_CREDENTIALS = True
+
+PROJECT_NAME = 'document_verifier'
+
+ACCESS_TOKEN_EXPIRE_MINUTES = decouple_config('ACCESS_TOKEN_EXPIRE_MINUTES')
+REFRESH_TOKEN_EXPIRE_MINUTES = decouple_config('REFRESH_TOKEN_EXPIRE_MINUTES')

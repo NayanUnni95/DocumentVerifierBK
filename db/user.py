@@ -14,14 +14,15 @@ def default_user_settings():
 
 
 class User(CustomBaseModel):
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
-    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=150, null=False)
+    last_name = models.CharField(max_length=150, null=True)
+    email = models.EmailField(unique=True, null=False)
     password = models.CharField(max_length=128, null=True, blank=True)
     settings = models.JSONField(default=default_user_settings)
 
     class Meta:
         db_table = "user"
+        app_label = 'api'
 
 
 class Affiliation(BaseUpdaterModel):
@@ -40,6 +41,7 @@ class Affiliation(BaseUpdaterModel):
 
     class Meta:
         db_table = "affiliation"
+        app_label = 'api'
 
 
 class UserOAuthCredential(BaseCreatorModel):
@@ -56,6 +58,7 @@ class UserOAuthCredential(BaseCreatorModel):
 
     class Meta:
         db_table = "user_oauth_credential"
+        app_label = 'api'
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "provider"],

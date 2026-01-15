@@ -2,7 +2,6 @@ import uuid
 
 from django.db import models
 
-from db.user import User
 from utils.date_util import DateUtil
 
 
@@ -13,13 +12,12 @@ class CustomBaseModel(models.Model):
         abstract = True
 
 class BaseCreatorModel(CustomBaseModel):
-    created_at = models.DateTimeField(auto_now_add=True, default=DateUtil.get_current_time)
+    created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
-        User,
-        nullable=False,
-        max_length=36,
+        'api.User',
+        null=False,
         on_delete=models.CASCADE,
-        related_name="updated_%(class)s_set"
+        related_name="created_%(class)s_set"
     )
 
     def set_audit_fields(self, user_id: str):
@@ -30,11 +28,10 @@ class BaseCreatorModel(CustomBaseModel):
         abstract = True
 
 class BaseUpdaterModel(BaseCreatorModel):
-    updated_at = models.DateTimeField(auto_now=True, default=DateUtil.get_current_time)
-    updated_by = user = models.ForeignKey(
-        User,
-        nullable=False,
-        max_length=36,
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        'api.User',
+        null=False,
         on_delete=models.CASCADE,
         related_name="updated_%(class)s_set"
     )
