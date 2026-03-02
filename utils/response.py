@@ -28,8 +28,17 @@ class CustomResponse:
             response (Dict[str, Any], optional): A dictionary of response data.
                 Defaults to {}.
         """
-        self.message = {} if message is None else message
-        self.general_message = [] if general_message is None else general_message
+        if isinstance(message, str):
+            self.message = {}
+            if general_message is None:
+                self.general_message = [message]
+            else:
+                self.general_message = general_message if isinstance(general_message, list) else [general_message]
+                self.general_message.append(message)
+        else:
+            self.message = {} if message is None else message
+            self.general_message = [] if general_message is None else general_message
+
         self.response = {} if response is None else response
 
         if not isinstance(self.general_message, list):

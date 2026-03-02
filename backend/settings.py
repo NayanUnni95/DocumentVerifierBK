@@ -158,7 +158,7 @@ SOCIALACCOUNT_PROVIDERS = {
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'utils.jwt_util.JWTUtil',
+        'utils.jwt_util.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -169,5 +169,5 @@ CORS_ALLOW_CREDENTIALS = True
 
 PROJECT_NAME = 'document_verifier'
 
-ACCESS_TOKEN_EXPIRE_MINUTES = decouple_config('ACCESS_TOKEN_EXPIRE_MINUTES')
-REFRESH_TOKEN_EXPIRE_MINUTES = decouple_config('REFRESH_TOKEN_EXPIRE_MINUTES')
+ACCESS_TOKEN_EXPIRE_MINUTES = decouple_config('ACCESS_TOKEN_EXPIRE_MINUTES', cast=int)
+REFRESH_TOKEN_EXPIRE_MINUTES = decouple_config('REFRESH_TOKEN_EXPIRE_MINUTES', cast=int)

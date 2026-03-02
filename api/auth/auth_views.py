@@ -35,7 +35,7 @@ class RegisterView(APIView):
                 "access_token": user_access_token,
                 "access_token_expiry": settings.ACCESS_TOKEN_EXPIRE_MINUTES,
                 "refresh_token": user_refresh_token,
-                "refresh_token_expiry": settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+                "refresh_token_expiry": settings.REFRESH_TOKEN_EXPIRE_MINUTES,
             }
         ).get_success_response()
 
@@ -79,6 +79,6 @@ class LoginView(APIView):
                 "access_token": user_access_token,
                 "access_token_expiry": settings.ACCESS_TOKEN_EXPIRE_MINUTES,
                 "refresh_token": user_refresh_token,
-                "refresh_token_expiry": settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+                "refresh_token_expiry": settings.REFRESH_TOKEN_EXPIRE_MINUTES,
             }
         ).get_success_response()
