@@ -7,6 +7,7 @@ from db.document import Document
 from utils.jwt_util import JWTAuthentication
 from utils.response import CustomResponse
 from utils.doctr_utils import extract_document_text
+from utils.s3_utils import upload_file_to_s3
 import tempfile
 import os
 
@@ -36,6 +37,7 @@ class DocumentListCreateView(APIView):
             }
 
         # Save the uploaded file to a temporary location for processing
+        file_obj.seek(0)
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_obj.name)[1]) as temp_file:
             for chunk in file_obj.chunks():
                 temp_file.write(chunk)
@@ -69,12 +71,22 @@ class DocumentListCreateView(APIView):
 
         file_obj = request.FILES.get('file')
         ocr_result = self._process_ocr(file_obj)
+        s3_url = None
 
-        # The serializer handles default values for source_url and ocr_content in .create()
-        # If we have an OCR result, we pass it to the save method
+        if file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
+            # Upload to S3 if feature is enabled
+            # Note: _process_ocr might have consumed the file pointer if it didn't seek back.
+            # But NamedTemporaryFile with chunks() usually is fine. 
+            # However, it's safer to seek(0) before upload.
+            file_obj.seek(0)
+            s3_url = upload_file_to_s3(file_obj)
+
+        # Build save arguments
         save_kwargs = {'created_by': request.user, 'updated_by': request.user}
         if ocr_result:
             save_kwargs['ocr_content'] = ocr_result
+        if s3_url:
+            save_kwargs['source_url'] = s3_url
 
         document = serializer.save(**save_kwargs)
         
@@ -89,6 +101,14 @@ class DocumentListCreateView(APIView):
                 message += " (OCR processing failed)"
             else:
                 message += " with OCR"
+        
+        if s3_url:
+            if getattr(settings, 'ENABLE_MOCK_STORAGE', False):
+                message += " (Mock storage used)"
+            else:
+                message += " and uploaded to S3"
+        elif file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
+            message += " (S3 upload failed)"
 
         return CustomResponse(
             message=message,
@@ -133,19 +153,27 @@ class DocumentRetrieveUpdateDeleteView(APIView):
         if not serializer.is_valid():
             return CustomResponse(message=serializer.errors).get_failure_response()
 
-        # Check for new file to re-run OCR
+        # Check for new file to re-run OCR and S3 upload
         file_obj = request.FILES.get('file')
         ocr_result = None
+        s3_url = None
+        
         if file_obj:
-             # We can reuse the helper from DocumentListCreateView or move it to a common place
-             # For now, let's keep it simple. Usually this logic would be in a service.
+             # re-run OCR
              list_view = DocumentListCreateView()
              ocr_result = list_view._process_ocr(file_obj)
+             
+             # re-run S3 upload
+             if getattr(settings, 'ENABLE_S3_STORAGE', False):
+                 file_obj.seek(0)
+                 s3_url = upload_file_to_s3(file_obj)
 
-        # Update audit field updated_by
+        # Update audit field updated_by and other results
         save_kwargs = {'updated_by': request.user}
         if ocr_result:
             save_kwargs['ocr_content'] = ocr_result
+        if s3_url:
+            save_kwargs['source_url'] = s3_url
             
         document = serializer.save(**save_kwargs)
         
@@ -160,6 +188,14 @@ class DocumentRetrieveUpdateDeleteView(APIView):
                 message += " (OCR processing failed)"
             else:
                 message += " with OCR"
+
+        if s3_url:
+            if getattr(settings, 'ENABLE_MOCK_STORAGE', False):
+                message += " (Mock storage used)"
+            else:
+                message += " and updated in S3"
+        elif file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
+            message += " (S3 update failed)"
 
         return CustomResponse(
             message=message,

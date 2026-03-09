@@ -174,3 +174,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = decouple_config('ACCESS_TOKEN_EXPIRE_MINUTES', cas
 REFRESH_TOKEN_EXPIRE_MINUTES = decouple_config('REFRESH_TOKEN_EXPIRE_MINUTES', cast=int)
 # Feature Flags (Centralized in utils/feature_flags.py)
 ENABLE_OCR = FeatureFlags.ENABLE_OCR
+AWS_ACCESS_KEY_ID = decouple_config('AWS_ACCESS_KEY_ID', default='')
+AWS_SECRET_ACCESS_KEY = decouple_config('AWS_SECRET_ACCESS_KEY', default='')
+AWS_STORAGE_BUCKET_NAME = decouple_config('AWS_STORAGE_BUCKET_NAME', default='')
+AWS_S3_REGION_NAME = decouple_config('AWS_S3_REGION_NAME', default='us-east-1')
+ENABLE_S3_STORAGE = FeatureFlags.ENABLE_S3_STORAGE
+ENABLE_MOCK_STORAGE = FeatureFlags.ENABLE_MOCK_STORAGE
