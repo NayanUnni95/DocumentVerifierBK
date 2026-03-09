@@ -76,3 +76,14 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
             validated_data['ocr_content'] = {"status": "pending", "message": "OCR processing in progress"}
         
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Handle partial update for the 'settings' JSON field
+        if 'settings' in validated_data and isinstance(validated_data['settings'], dict):
+            existing_settings = instance.settings or {}
+            new_settings = validated_data.pop('settings')
+            # Merge the new settings into the existing one
+            existing_settings.update(new_settings)
+            instance.settings = existing_settings
+            
+        return super().update(instance, validated_data)
