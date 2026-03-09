@@ -38,7 +38,7 @@ class OAuthProviderType(Enum):
 class DocumentType(Enum):
     CERTIFICATE = "Certificate"
     DIPLOMA = "Diploma"
-    lICENSE = "License"
+    LICENSE = "License"
     CONTRACT = "Contract"
     REPORT = "Report"
     OTHER = "Other"

@@ -20,6 +20,18 @@ class User(CustomBaseModel):
     password = models.CharField(max_length=128, null=True, blank=True)
     settings = models.JSONField(default=default_user_settings)
 
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
     class Meta:
         db_table = "user"
         app_label = 'api'
