@@ -53,6 +53,8 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
     Handles title, type, description, and recipient details
     source_url and ocr_content are populated via internal logic
     """
+    file = serializers.FileField(required=False, write_only=True)
+
     class Meta:
         model = Document
         fields = [
@@ -66,10 +68,14 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
             'settings',
             'issue_at',
             'expiry_at',
+            'file',
         ]
         read_only_fields = ['id']
 
     def create(self, validated_data):
+        # Remove file field as it's not part of the Document model
+        validated_data.pop('file', None)
+
         if 'source_url' not in validated_data:
             validated_data['source_url'] = "https://example.com/placeholder-source-url"
         if 'ocr_content' not in validated_data:
@@ -78,6 +84,9 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        # Remove file field as it's not part of the Document model
+        validated_data.pop('file', None)
+
         # Handle partial update for the 'settings' JSON field
         if 'settings' in validated_data and isinstance(validated_data['settings'], dict):
             existing_settings = instance.settings or {}
