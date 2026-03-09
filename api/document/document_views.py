@@ -17,7 +17,7 @@ class DocumentListCreateView(APIView):
     def get(self, request):
         # Allow filtering or pagination later for scalability
         documents = Document.objects.filter(created_by=request.user)
-        serializer = serializers.DocumentSerializer(documents, many=True)
+        serializer = serializers.DocumentListAllSerializer(documents, many=True)
         
         return CustomResponse(
             message="Documents retrieved successfully",
@@ -60,7 +60,7 @@ class DocumentRetrieveUpdateDeleteView(APIView):
                 general_message="Document not found or access denied."
             ).get_failure_response(status_code=404)
             
-        serializer = serializers.DocumentSerializer(document, many=False)
+        serializer = serializers.DocumentListSpecifcSerializer(document, many=False)
         return CustomResponse(
             message="Document retrieved successfully",
             response=serializer.data

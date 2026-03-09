@@ -4,7 +4,7 @@ from db.document import Document
 
 class DocumentSerializer(serializers.ModelSerializer):
     """
-    Serializer for returning complete document details
+    Serializer for returning id, tiel document details for create docs
     """
     class Meta:
         model = Document
@@ -13,6 +13,39 @@ class DocumentSerializer(serializers.ModelSerializer):
             'title'
         ]
 
+class DocumentListAllSerializer(serializers.ModelSerializer):
+    """
+    Serializer for returning complete document details for list all docs
+    """
+    class Meta:
+        model = Document
+        fields = [
+            'id',
+            'title',
+            'type',
+            'description',
+            'issue_at',
+            'expiry_at',
+        ]
+
+class DocumentListSpecifcSerializer(serializers.ModelSerializer):
+    """
+    Serializer for returning complete document details for list specific doc
+    """
+    class Meta:
+        model = Document
+        fields = [
+            'id',
+            'title',
+            'type',
+            'description',
+            'recipient_name',
+            'recipient_email',
+            'issuing_affiliation',
+            # 'settings',
+            'issue_at',
+            'expiry_at',
+        ]
 
 class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
     """
