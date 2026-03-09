@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from decouple import config as decouple_config
+from utils.feature_flags import FeatureFlags
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -171,3 +172,5 @@ PROJECT_NAME = 'document_verifier'
 
 ACCESS_TOKEN_EXPIRE_MINUTES = decouple_config('ACCESS_TOKEN_EXPIRE_MINUTES', cast=int)
 REFRESH_TOKEN_EXPIRE_MINUTES = decouple_config('REFRESH_TOKEN_EXPIRE_MINUTES', cast=int)
+# Feature Flags (Centralized in utils/feature_flags.py)
+ENABLE_OCR = FeatureFlags.ENABLE_OCR

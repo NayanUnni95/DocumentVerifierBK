@@ -1,5 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
 
 from api.document import serializers
 from db.document import Document
@@ -20,9 +21,19 @@ class DocumentListCreateView(APIView):
     def _process_ocr(self, file_obj):
         """
         Helper method to perform OCR on an uploaded file.
+        Check's ENABLE_OCR feature flag from settings.
         """
         if not file_obj:
             return None
+
+        # Centralized check for OCR feature flag
+        if not getattr(settings, 'ENABLE_OCR', True):
+            return {
+                "status": "disabled",
+                "message": "OCR feature is currently disabled via feature flag",
+                "ocr_text": "Default OCR content: OCR processing is disabled. Please enable it in settings to process documents.",
+                "pages": []
+            }
 
         # Save the uploaded file to a temporary location for processing
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_obj.name)[1]) as temp_file:
@@ -68,8 +79,19 @@ class DocumentListCreateView(APIView):
         document = serializer.save(**save_kwargs)
         
         detail_serializer = serializers.DocumentSerializer(document, many=False)
+
+        # Clearer response message based on OCR status
+        message = "Document created successfully"
+        if ocr_result:
+            if ocr_result.get('status') == 'disabled':
+                message += " (OCR disabled)"
+            elif ocr_result.get('status') == 'error':
+                message += " (OCR processing failed)"
+            else:
+                message += " with OCR"
+
         return CustomResponse(
-            message="Document created successfully" + (" with OCR" if ocr_result and ocr_result.get('status') != 'error' else ""),
+            message=message,
             response=detail_serializer.data
         ).get_success_response()
 
@@ -128,8 +150,19 @@ class DocumentRetrieveUpdateDeleteView(APIView):
         document = serializer.save(**save_kwargs)
         
         detail_serializer = serializers.DocumentSerializer(document, many=False)
+
+        # Clearer response message based on OCR status
+        message = "Document updated successfully"
+        if ocr_result:
+            if ocr_result.get('status') == 'disabled':
+                message += " (OCR disabled)"
+            elif ocr_result.get('status') == 'error':
+                message += " (OCR processing failed)"
+            else:
+                message += " with OCR"
+
         return CustomResponse(
-            message="Document updated successfully" + (" with OCR" if ocr_result and ocr_result.get('status') != 'error' else ""),
+            message=message,
             response=detail_serializer.data
         ).get_success_response()
 

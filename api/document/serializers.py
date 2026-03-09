@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from db.document import Document
+from django.conf import settings
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -78,8 +79,17 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
 
         if 'source_url' not in validated_data:
             validated_data['source_url'] = "https://example.com/placeholder-source-url"
+
         if 'ocr_content' not in validated_data:
-            validated_data['ocr_content'] = {"status": "pending", "message": "OCR processing in progress"}
+            if not getattr(settings, 'ENABLE_OCR', True):
+                validated_data['ocr_content'] = {
+                    "status": "disabled",
+                    "message": "OCR feature is currently disabled via feature flag",
+                    "ocr_text": "Default OCR content: OCR processing is disabled. Please enable it in settings to process documents.",
+                    "pages": []
+                }
+            else:
+                validated_data['ocr_content'] = {"status": "pending", "message": "OCR processing in progress"}
         
         return super().create(validated_data)
 
