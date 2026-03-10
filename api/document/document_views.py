@@ -273,3 +273,35 @@ class DocumentVerifyView(OCRProcessorView):
             message="Document verified successfully",
             response=serializer.data
         ).get_success_response()
+
+
+class DocumentPublicView(APIView):
+    """
+    Handles public document viewing via ID.
+    No authentication required. Returns docs data if the doc is public.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            document = Document.objects.get(pk=pk)
+        except Document.DoesNotExist:
+            return CustomResponse(
+                general_message="Document not found."
+            ).get_failure_response(status_code=404)
+
+        # Check if the document is public in settings
+        # The settings look like: {"is_public": True} (based on default_doc_settings in db/document.py)
+        is_public = document.settings.get('is_public', False)
+        
+        if not is_public:
+            return CustomResponse(
+                general_message="Access denied. This document is not public."
+            ).get_failure_response(status_code=403)
+
+        serializer = serializers.DocumentListSpecifcSerializer(document)
+        return CustomResponse(
+            message="Document retrieved successfully",
+            response=serializer.data
+        ).get_success_response()

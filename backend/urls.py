@@ -23,4 +23,5 @@ urlpatterns = [
     path('auth/', include('api.auth.urls')),
     path('doc/', include('api.document.urls')),
     path('verify/', include('api.verify.urls')),
+    path('user/', include('api.user.urls')),
 ]

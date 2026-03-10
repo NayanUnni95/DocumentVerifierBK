@@ -51,3 +51,13 @@ class DocumentType(Enum):
     def choices(cls):
         return [(item.value, item.value) for item in cls]
 
+
+class ActivityType(Enum):
+    UPLOAD = "upload"
+    CHECK = "check"
+    SHARED = "shared"
+
+    @classmethod
+    def choices(cls):
+        return [(item.value, item.value) for item in cls]
+
