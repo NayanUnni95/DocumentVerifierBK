@@ -12,6 +12,8 @@ import os
 from utils.hashing_util import HashingUtils
 from utils.blockchain_util import BlockchainUtils
 from utils.feature_flags import FeatureFlags
+from db.activity import Activity
+from utils.types import ActivityType
 
 
 class OCRProcessorView(APIView):
@@ -224,6 +226,50 @@ class DocumentRetrieveUpdateDeleteView(OCRProcessorView):
         document.delete()
         return CustomResponse(
             message="Document deleted successfully"
+        ).get_success_response()
+
+
+class DocumentInsightView(APIView):
+    """
+    Provides insights for the user's documents and activities.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Document counts
+        all_docs = Document.objects.filter(created_by=user)
+        total_docs = all_docs.count()
+        
+        # Public vs Private logic based on JSON settings
+        # This is more efficient than iterating in memory if possible, 
+        # but since settings is a JSONField, filtering depends on DB support.
+        # However, for simplicity and reliability across different DB backends:
+        public_docs = Document.objects.filter(created_by=user, settings__is_public=True).count()
+        private_docs = total_docs - public_docs
+
+        # Activity counts
+        total_verification = Activity.objects.filter(
+            doc_owner=user, 
+            activity_type=ActivityType.CHECK.value
+        ).count()
+        
+        total_shared = Activity.objects.filter(
+            doc_owner=user, 
+            activity_type=ActivityType.SHARED.value
+        ).count()
+
+        return CustomResponse(
+            message="Insights retrieved successfully",
+            response={
+                "total_docs": total_docs,
+                "public_docs": public_docs,
+                "private_docs": private_docs,
+                "total_verification": total_verification,
+                "total_shared": total_shared
+            }
         ).get_success_response()
 
 
