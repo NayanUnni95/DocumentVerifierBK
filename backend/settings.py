@@ -29,7 +29,7 @@ SECRET_KEY = decouple_config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = decouple_config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -166,7 +166,27 @@ REST_FRAMEWORK = {
     ],
 }
 
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 PROJECT_NAME = 'document_verifier'
 
@@ -179,4 +199,3 @@ AWS_SECRET_ACCESS_KEY = decouple_config('AWS_SECRET_ACCESS_KEY', default='')
 AWS_STORAGE_BUCKET_NAME = decouple_config('AWS_STORAGE_BUCKET_NAME', default='')
 AWS_S3_REGION_NAME = decouple_config('AWS_S3_REGION_NAME', default='us-east-1')
 ENABLE_S3_STORAGE = FeatureFlags.ENABLE_S3_STORAGE
-ENABLE_MOCK_STORAGE = FeatureFlags.ENABLE_MOCK_STORAGE

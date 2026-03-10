@@ -7,9 +7,11 @@ from db.document import Document
 from utils.jwt_util import JWTAuthentication
 from utils.response import CustomResponse
 from utils.doctr_utils import extract_document_text
-from utils.s3_utils import upload_file_to_s3
 import tempfile
 import os
+from utils.hashing_util import HashingUtils
+from utils.blockchain_util import BlockchainUtils
+from utils.feature_flags import FeatureFlags
 
 
 class DocumentListCreateView(APIView):
@@ -44,21 +46,16 @@ class DocumentListCreateView(APIView):
             temp_file_path = temp_file.name
 
         try:
-            # Perform OCR processing
             return extract_document_text(temp_file_path, structured=True)
         except Exception as e:
-            # In a real app, you might want to log this error
             return {"status": "error", "message": str(e)}
         finally:
-            # Clean up the temporary file
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
 
     def get(self, request):
-        # Allow filtering or pagination later for scalability
         documents = Document.objects.filter(created_by=request.user)
         serializer = serializers.DocumentListAllSerializer(documents, many=True)
-        
         return CustomResponse(
             message="Documents retrieved successfully",
             response=serializer.data
@@ -70,29 +67,37 @@ class DocumentListCreateView(APIView):
             return CustomResponse(message=serializer.errors).get_failure_response()
 
         file_obj = request.FILES.get('file')
+
+        # Run OCR before saving (needs the file pointer at position 0)
         ocr_result = self._process_ocr(file_obj)
-        s3_url = None
 
-        if file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
-            # Upload to S3 if feature is enabled
-            # Note: _process_ocr might have consumed the file pointer if it didn't seek back.
-            # But NamedTemporaryFile with chunks() usually is fine. 
-            # However, it's safer to seek(0) before upload.
-            file_obj.seek(0)
-            s3_url = upload_file_to_s3(file_obj)
-
-        # Build save arguments
+        # Build save arguments — serializer.create() handles the S3 upload itself
         save_kwargs = {'created_by': request.user, 'updated_by': request.user}
         if ocr_result:
             save_kwargs['ocr_content'] = ocr_result
-        if s3_url:
-            save_kwargs['source_url'] = s3_url
+
+        # Hashing and Blockchain logic
+        doc_hash = None
+        tx_hash = None
+        if ocr_result and ocr_result.get('status') not in ['error', 'disabled'] and FeatureFlags.ENABLE_BLOCKCHAIN:
+            try:
+                # Generate hash from OCR result
+                doc_hash = HashingUtils.sha256_from_json(ocr_result)
+                save_kwargs['document_hash'] = doc_hash
+
+                # Send hash to blockchain
+                blockchain_utils = BlockchainUtils()
+                tx_hash = blockchain_utils.send_hash_transaction(doc_hash)
+                save_kwargs['blockchain_tx_hash'] = tx_hash
+            except Exception as e:
+                # Log error or handle as needed
+                print(f"Blockchain/Hashing error: {str(e)}")
 
         document = serializer.save(**save_kwargs)
-        
+
         detail_serializer = serializers.DocumentSerializer(document, many=False)
 
-        # Clearer response message based on OCR status
+        # Build response message
         message = "Document created successfully"
         if ocr_result:
             if ocr_result.get('status') == 'disabled':
@@ -101,14 +106,14 @@ class DocumentListCreateView(APIView):
                 message += " (OCR processing failed)"
             else:
                 message += " with OCR"
-        
-        if s3_url:
-            if getattr(settings, 'ENABLE_MOCK_STORAGE', False):
-                message += " (Mock storage used)"
-            else:
+
+        if document.source_url:
+            if getattr(settings, 'ENABLE_S3_STORAGE', False):
                 message += " and uploaded to S3"
-        elif file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
-            message += " (S3 upload failed)"
+            else:
+                message += " (Mock storage used)"
+        elif file_obj:
+            message += " (Storage upload failed)"
 
         return CustomResponse(
             message=message,
@@ -135,7 +140,7 @@ class DocumentRetrieveUpdateDeleteView(APIView):
             return CustomResponse(
                 general_message="Document not found or access denied."
             ).get_failure_response(status_code=404)
-            
+
         serializer = serializers.DocumentListSpecifcSerializer(document, many=False)
         return CustomResponse(
             message="Document retrieved successfully",
@@ -153,33 +158,39 @@ class DocumentRetrieveUpdateDeleteView(APIView):
         if not serializer.is_valid():
             return CustomResponse(message=serializer.errors).get_failure_response()
 
-        # Check for new file to re-run OCR and S3 upload
         file_obj = request.FILES.get('file')
-        ocr_result = None
-        s3_url = None
-        
-        if file_obj:
-             # re-run OCR
-             list_view = DocumentListCreateView()
-             ocr_result = list_view._process_ocr(file_obj)
-             
-             # re-run S3 upload
-             if getattr(settings, 'ENABLE_S3_STORAGE', False):
-                 file_obj.seek(0)
-                 s3_url = upload_file_to_s3(file_obj)
 
-        # Update audit field updated_by and other results
+        # Run OCR if a new file was sent
+        ocr_result = None
+        if file_obj:
+            list_view = DocumentListCreateView()
+            ocr_result = list_view._process_ocr(file_obj)
+
+        # serializer.update() handles S3 re-upload automatically when file is present
         save_kwargs = {'updated_by': request.user}
         if ocr_result:
             save_kwargs['ocr_content'] = ocr_result
-        if s3_url:
-            save_kwargs['source_url'] = s3_url
-            
+
+        # Hashing and Blockchain logic
+        doc_hash = None
+        tx_hash = None
+        if ocr_result and ocr_result.get('status') not in ['error', 'disabled'] and FeatureFlags.ENABLE_BLOCKCHAIN:
+            try:
+                # Generate new hash from OCR result
+                doc_hash = HashingUtils.sha256_from_json(ocr_result)
+                save_kwargs['document_hash'] = doc_hash
+
+                # Send new hash to blockchain
+                blockchain_utils = BlockchainUtils()
+                tx_hash = blockchain_utils.send_hash_transaction(doc_hash)
+                save_kwargs['blockchain_tx_hash'] = tx_hash
+            except Exception as e:
+                print(f"Blockchain/Hashing error: {str(e)}")
+
         document = serializer.save(**save_kwargs)
-        
+
         detail_serializer = serializers.DocumentSerializer(document, many=False)
 
-        # Clearer response message based on OCR status
         message = "Document updated successfully"
         if ocr_result:
             if ocr_result.get('status') == 'disabled':
@@ -189,13 +200,13 @@ class DocumentRetrieveUpdateDeleteView(APIView):
             else:
                 message += " with OCR"
 
-        if s3_url:
-            if getattr(settings, 'ENABLE_MOCK_STORAGE', False):
-                message += " (Mock storage used)"
-            else:
+        if file_obj and document.source_url:
+            if getattr(settings, 'ENABLE_S3_STORAGE', False):
                 message += " and updated in S3"
-        elif file_obj and getattr(settings, 'ENABLE_S3_STORAGE', False):
-            message += " (S3 update failed)"
+            else:
+                message += " (Mock storage used)"
+        elif file_obj:
+            message += " (Storage update failed)"
 
         return CustomResponse(
             message=message,

@@ -6,4 +6,4 @@ class FeatureFlags:
     ENABLE_OCR = True
     ENABLE_S3_STORAGE = True
     ENABLE_USER_REGISTRATION = True
-    ENABLE_MOCK_STORAGE = True
+    ENABLE_BLOCKCHAIN = True
