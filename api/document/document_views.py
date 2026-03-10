@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.conf import settings
 
 from api.document import serializers
@@ -14,13 +14,7 @@ from utils.blockchain_util import BlockchainUtils
 from utils.feature_flags import FeatureFlags
 
 
-class DocumentListCreateView(APIView):
-    """
-    Handles GET for listing user documents and POST for creating a new document.
-    """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
+class OCRProcessorView(APIView):
     def _process_ocr(self, file_obj):
         """
         Helper method to perform OCR on an uploaded file.
@@ -52,6 +46,14 @@ class DocumentListCreateView(APIView):
         finally:
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
+
+
+class DocumentListCreateView(OCRProcessorView):
+    """
+    Handles GET for listing user documents and POST for creating a new document.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         documents = Document.objects.filter(created_by=request.user)
@@ -121,7 +123,7 @@ class DocumentListCreateView(APIView):
         ).get_success_response()
 
 
-class DocumentRetrieveUpdateDeleteView(APIView):
+class DocumentRetrieveUpdateDeleteView(OCRProcessorView):
     """
     Handles GET (retrieve), PUT (update), and DELETE for a specific document.
     """
@@ -143,7 +145,7 @@ class DocumentRetrieveUpdateDeleteView(APIView):
 
         serializer = serializers.DocumentListSpecifcSerializer(document, many=False)
         return CustomResponse(
-            message="Document retrieved successfully",
+            message="Documents retrieved successfully",
             response=serializer.data
         ).get_success_response()
 
@@ -163,8 +165,7 @@ class DocumentRetrieveUpdateDeleteView(APIView):
         # Run OCR if a new file was sent
         ocr_result = None
         if file_obj:
-            list_view = DocumentListCreateView()
-            ocr_result = list_view._process_ocr(file_obj)
+            ocr_result = self._process_ocr(file_obj)
 
         # serializer.update() handles S3 re-upload automatically when file is present
         save_kwargs = {'updated_by': request.user}
@@ -223,4 +224,52 @@ class DocumentRetrieveUpdateDeleteView(APIView):
         document.delete()
         return CustomResponse(
             message="Document deleted successfully"
+        ).get_success_response()
+
+
+class DocumentVerifyView(OCRProcessorView):
+    """
+    Handles public document verification via file upload.
+    No authentication required.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return CustomResponse(
+                general_message="No file provided."
+            ).get_failure_response(status_code=400)
+
+        # 1. OCR extraction
+        ocr_result = self._process_ocr(file_obj)
+        
+        if not ocr_result or ocr_result.get('status') in ['error', 'disabled']:
+            error_msg = "OCR processing failed" if ocr_result and ocr_result.get('status') == 'error' else "OCR is disabled"
+            return CustomResponse(
+                general_message="Verification failed: " + error_msg
+            ).get_failure_response(status_code=400)
+
+        # 2. Hashing
+        try:
+            doc_hash = HashingUtils.sha256_from_json(ocr_result)
+        except Exception as e:
+            return CustomResponse(
+                general_message=f"Hashing failed: {str(e)}"
+            ).get_failure_response(status_code=500)
+
+        # 3. Verify in database (which essentially verifies via blockchain as we store the hash)
+        document = Document.objects.filter(document_hash=doc_hash).first()
+        
+        if not document:
+            return CustomResponse(
+                general_message="Verification failed: Document hash not found in records."
+            ).get_failure_response(status_code=404)
+
+        # 4. Return basic details
+        serializer = serializers.DocumentListAllSerializer(document)
+        return CustomResponse(
+            message="Document verified successfully",
+            response=serializer.data
         ).get_success_response()
