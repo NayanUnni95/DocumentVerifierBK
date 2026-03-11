@@ -178,7 +178,8 @@ Authorization: Bearer <your-access-token>
 ### Manage Organization (Affiliation)
 
 **Endpoints**: 
-* `GET /user/org/` - View organization details
+* `GET /user/org/` - View organization details (Returns 200 with null if not found)
+* `POST /user/org/` - Create organization details
 * `PUT /user/org/` - Update or create organization details
 * `DELETE /user/org/` - Delete organization details
 
@@ -310,7 +311,7 @@ file=@document_to_verify.pdf
 
 ### View Public Document by ID
 
-**Description**: View details of a specific document if its owner has set `is_public: true` in settings.
+**Description**: View details of a specific document if its owner has set `public_view: true` in settings.
 
 ```bash
 GET http://localhost:8000/verify/view-document/550e8400-e29b-41d4-a716-446655440000/

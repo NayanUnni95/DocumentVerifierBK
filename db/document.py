@@ -6,7 +6,8 @@ from utils.types import DocumentType
 
 def default_doc_settings():
     return {
-        "is_pubic": False,
+        "public_view": False,
+        "allow_download": False
     }
 
 

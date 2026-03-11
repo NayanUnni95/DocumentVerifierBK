@@ -247,7 +247,7 @@ class DocumentInsightView(APIView):
         # This is more efficient than iterating in memory if possible, 
         # but since settings is a JSONField, filtering depends on DB support.
         # However, for simplicity and reliability across different DB backends:
-        public_docs = Document.objects.filter(created_by=user, settings__is_public=True).count()
+        public_docs = Document.objects.filter(created_by=user, settings__public_view=True).count()
         private_docs = total_docs - public_docs
 
         # Activity counts
@@ -338,10 +338,10 @@ class DocumentPublicView(APIView):
             ).get_failure_response(status_code=404)
 
         # Check if the document is public in settings
-        # The settings look like: {"is_public": True} (based on default_doc_settings in db/document.py)
-        is_public = document.settings.get('is_public', False)
+        # The settings look like: {"public_view": True}
+        public_view = document.settings.get('public_view', False)
         
-        if not is_public:
+        if not public_view:
             return CustomResponse(
                 general_message="Access denied. This document is not public."
             ).get_failure_response(status_code=403)

@@ -44,24 +44,42 @@ class UserOrgView(APIView):
         affiliation = self.get_affiliation(request.user)
         if not affiliation:
              return CustomResponse(
-                general_message="Organization details not found"
-            ).get_failure_response(status_code=404)
+                message="Organization details not found",
+                response=None
+            ).get_success_response()
             
         serializer = serializers.AffiliationSerializer(affiliation)
         return CustomResponse(
             message="Organization details retrieved successfully",
             response=serializer.data
         ).get_success_response()
+    def post(self, request):
+        affiliation = self.get_affiliation(request.user)
+        if affiliation:
+            return CustomResponse(
+                general_message="Organization details already exist"
+            ).get_failure_response(status_code=400)
+            
+        serializer = serializers.AffiliationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user, created_by=request.user, updated_by=request.user)
+            return CustomResponse(
+                message="Organization details created successfully",
+                response=serializer.data
+            ).get_success_response()
+        return CustomResponse(message=serializer.errors).get_failure_response()
 
     def put(self, request):
         affiliation = self.get_affiliation(request.user)
         if affiliation:
             serializer = serializers.AffiliationSerializer(affiliation, data=request.data, partial=True)
+            save_kwargs = {'updated_by': request.user}
         else:
             serializer = serializers.AffiliationSerializer(data=request.data)
+            save_kwargs = {'user': request.user, 'created_by': request.user, 'updated_by': request.user}
             
         if serializer.is_valid():
-            serializer.save(user=request.user)
+            serializer.save(**save_kwargs)
             return CustomResponse(
                 message="Organization details updated successfully",
                 response=serializer.data

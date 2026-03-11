@@ -47,13 +47,24 @@ class DocumentListSpecifcSerializer(serializers.ModelSerializer):
             'recipient_name',
             'recipient_email',
             'issuing_affiliation',
-            # 'settings',
+            'settings',
+            'public_view',
+            'allow_download',
             "source_url",
             'issue_at',
             'expiry_at',
             'document_hash',
             'blockchain_tx_hash',
         ]
+
+    public_view = serializers.SerializerMethodField()
+    allow_download = serializers.SerializerMethodField()
+
+    def get_public_view(self, obj):
+        return obj.settings.get('public_view', False)
+
+    def get_allow_download(self, obj):
+        return obj.settings.get('allow_download', False)
 
 class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
     """
@@ -63,6 +74,8 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
     source_url and ocr_content are NOT accepted from the client directly.
     """
     file = serializers.FileField(required=False, write_only=True)
+    public_view = serializers.BooleanField(required=False, write_only=True)
+    allow_download = serializers.BooleanField(required=False, write_only=True)
 
     class Meta:
         model = Document
@@ -73,11 +86,12 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
             'recipient_name',
             'recipient_email',
             'issuing_affiliation',
-            'settings',
             'issue_at',
             'expiry_at',
             'file',
             'source_url',
+            'public_view',
+            'allow_download',
         ]
         read_only_fields = ['id']
 
@@ -100,7 +114,18 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
 
         # Extract the file — do NOT pass it to the model
         file_obj = validated_data.pop('file', None)
-        # print(f"[DEBUG] file_obj after pop: {file_obj}", flush=True)
+        # Remove settings if sent from frontend
+        validated_data.pop('settings', None)
+        
+        # Extract flat settings
+        public_view = validated_data.pop('public_view', False)
+        allow_download = validated_data.pop('allow_download', False)
+        
+        # Set default settings
+        validated_data['settings'] = {
+            "public_view": public_view,
+            "allow_download": allow_download
+        }
 
         # Upload file and set source_url
         url = self._upload_file(file_obj)
@@ -132,12 +157,20 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
             if url:
                 validated_data['source_url'] = url
 
-        # Handle partial update for the 'settings' JSON field
-        if 'settings' in validated_data and isinstance(validated_data['settings'], dict):
+        # Handle flat settings update
+        public_view = validated_data.pop('public_view', None)
+        allow_download = validated_data.pop('allow_download', None)
+        
+        if public_view is not None or allow_download is not None:
             existing_settings = instance.settings or {}
-            new_settings = validated_data.pop('settings')
-            # Merge the new settings into the existing one
-            existing_settings.update(new_settings)
+            if public_view is not None:
+                existing_settings['public_view'] = public_view
+            if allow_download is not None:
+                existing_settings['allow_download'] = allow_download
             instance.settings = existing_settings
+            instance.save() # Ensure settings are saved if we modified instance directly
+
+        # Remove 'settings' if it was sent nested (as per user request to move away from it)
+        validated_data.pop('settings', None)
 
         return super().update(instance, validated_data)
