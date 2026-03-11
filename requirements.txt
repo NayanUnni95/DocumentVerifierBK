@@ -12,6 +12,8 @@ python-doctr==1.0.1
 web3==7.14.1
 psycopg2-binary==2.9.11
 PyJWT==2.10.1
+cryptography==42.0.8
+
 python-decouple==3.8
 python-dotenv==1.2.1
 requests==2.32.5
