@@ -1,0 +1,33 @@
+
+.DS_Store
+._*
+# Django #
+*.log
+*.pot
+*.pyc
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+
+# Allow migrations to be copied into the container
+# migrations/*.py
+# */migrations/*.py
+# */*/migrations/*.py
+
+!migrations/__init__.py
+!*/migrations/__init__.py
+!*/*/migrations/__init__.py
+
+media/
+logs/
+staticfiles/
+
+.README.md
+.git
+.gitignore
+.env
+.venv
+env/
+venv/
+.vscode
+.idea

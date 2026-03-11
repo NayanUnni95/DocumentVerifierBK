@@ -1,0 +1,22 @@
+version: "3"
+services:
+  documentverifierbk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: documentverifierbk
+    image: documentverifierbk
+    restart: always
+    ports:
+      - "8014:8000"
+    volumes:
+      - ./logs:/var/log/documentverifierbk
+    mem_limit: 1536m
+    env_file:
+      - .env
+    networks:
+      - shared_network
+
+networks:
+  shared_network:
+    external: true
