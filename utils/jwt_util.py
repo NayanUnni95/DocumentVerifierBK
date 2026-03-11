@@ -82,5 +82,7 @@ class JWTAuthentication(BaseAuthentication):
             
         except User.DoesNotExist:
             raise AuthenticationFailed("User not found")
+        except AuthenticationFailed:
+            raise
         except Exception as e:
-            return None
+            raise AuthenticationFailed(f"Authentication error: {str(e)}")

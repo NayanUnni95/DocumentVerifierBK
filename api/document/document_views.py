@@ -14,6 +14,7 @@ from utils.blockchain_util import BlockchainUtils
 from utils.feature_flags import FeatureFlags
 from db.activity import Activity
 from utils.types import ActivityType
+from utils.s3_utils import delete_file_from_s3
 
 
 class OCRProcessorView(APIView):
@@ -99,6 +100,14 @@ class DocumentListCreateView(OCRProcessorView):
 
         document = serializer.save(**save_kwargs)
 
+        # Log activity
+        Activity.objects.create(
+            user=request.user,
+            doc_owner=request.user,
+            doc=document,
+            activity_type=ActivityType.UPLOAD.value
+        )
+
         detail_serializer = serializers.DocumentSerializer(document, many=False)
 
         # Build response message
@@ -162,6 +171,8 @@ class DocumentRetrieveUpdateDeleteView(OCRProcessorView):
         if not serializer.is_valid():
             return CustomResponse(message=serializer.errors).get_failure_response()
 
+        old_public_view = document.settings.get('public_view', False)
+
         file_obj = request.FILES.get('file')
 
         # Run OCR if a new file was sent
@@ -191,6 +202,15 @@ class DocumentRetrieveUpdateDeleteView(OCRProcessorView):
                 print(f"Blockchain/Hashing error: {str(e)}")
 
         document = serializer.save(**save_kwargs)
+
+        new_public_view = document.settings.get('public_view', False)
+        if old_public_view != new_public_view:
+            Activity.objects.create(
+                user=request.user,
+                doc_owner=request.user,
+                doc=document,
+                activity_type=ActivityType.SHARED.value
+            )
 
         detail_serializer = serializers.DocumentSerializer(document, many=False)
 
@@ -222,6 +242,9 @@ class DocumentRetrieveUpdateDeleteView(OCRProcessorView):
             return CustomResponse(
                 general_message="Document not found or access denied."
             ).get_failure_response(status_code=404)
+
+        if document.source_url:
+            delete_file_from_s3(document.source_url)
 
         document.delete()
         return CustomResponse(
@@ -273,6 +296,22 @@ class DocumentInsightView(APIView):
         ).get_success_response()
 
 
+class ActivityListView(APIView):
+    """
+    Handles GET for listing user activities.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        activities = Activity.objects.filter(doc_owner=request.user).order_by('-created_at')
+        serializer = serializers.ActivitySerializer(activities, many=True)
+        return CustomResponse(
+            message="Activities retrieved successfully",
+            response=serializer.data
+        ).get_success_response()
+
+
 class DocumentVerifyView(OCRProcessorView):
     """
     Handles public document verification via file upload.
@@ -305,13 +344,40 @@ class DocumentVerifyView(OCRProcessorView):
                 general_message=f"Hashing failed: {str(e)}"
             ).get_failure_response(status_code=500)
 
-        # 3. Verify in database (which essentially verifies via blockchain as we store the hash)
+        # 3. Verify in database & check on blockchain if enabled
         document = Document.objects.filter(document_hash=doc_hash).first()
         
         if not document:
             return CustomResponse(
                 general_message="Verification failed: Document hash not found in records."
             ).get_failure_response(status_code=404)
+
+        # "Check in the chain" - verify tx data matches hash if blockchain is enabled
+        if FeatureFlags.ENABLE_BLOCKCHAIN and document.blockchain_tx_hash:
+            try:
+                blockchain_utils = BlockchainUtils()
+                tx = blockchain_utils.get_transaction(document.blockchain_tx_hash)
+                # Chain check: compare input data with our hash
+                # Note: tx['input'] returns a HexBytes object, convert it to a hex string for comparison
+                chain_data_hex = blockchain_utils.w3.to_hex(tx.get('input', b''))
+                expected_data_hex = blockchain_utils.w3.to_hex(text=doc_hash)
+                
+                if chain_data_hex.lower() != expected_data_hex.lower():
+                    return CustomResponse(
+                        general_message="Verification failed: Blockchain data mismatch."
+                    ).get_failure_response(status_code=400)
+            except Exception as e:
+                return CustomResponse(
+                    general_message=f"Blockchain verification failed: {str(e)}"
+                ).get_failure_response(status_code=400)
+
+        # Log activity
+        Activity.objects.create(
+            user=None, # Public user
+            doc_owner=document.created_by,
+            doc=document,
+            activity_type=ActivityType.CHECK.value
+        )
 
         # 4. Return basic details
         serializer = serializers.DocumentListAllSerializer(document)

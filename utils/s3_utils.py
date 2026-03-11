@@ -57,3 +57,45 @@ def upload_file_to_s3(file_obj, folder_name="documents"):
         if "AccessDenied" in str(e):
             print("Hint: Check if your AWS credentials have S3 PutObject permissions and if the bucket allows 'public-read' ACL.", flush=True)
         return None
+
+def delete_file_from_s3(file_url):
+    """
+    Deletes a file from AWS S3 using its full URL.
+    """
+    if not getattr(settings, 'ENABLE_S3_STORAGE', False):
+        print(f"S3 Storage is disabled: mock deletion for {file_url}", flush=True)
+        return True
+
+    if not file_url:
+        return False
+
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME
+    )
+
+    try:
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        # The key is anything after the bucket domain
+        # Example URL: https://bucket.s3.region.amazonaws.com/folder/file-uuid.ext
+        # We need to extract 'folder/file-uuid.ext'
+        
+        # Split by the bucket name and the .s3. domain
+        parts = file_url.split(f"{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/")
+        if len(parts) < 2:
+             # Try a simpler split if the above fails (sometimes region is omitted in some S3 URLs or varies)
+            parts = file_url.split(".amazonaws.com/")
+            if len(parts) < 2:
+                print(f"Could not parse S3 key from URL: {file_url}", flush=True)
+                return False
+        
+        file_key = parts[1]
+        
+        s3_client.delete_object(Bucket=bucket_name, Key=file_key)
+        print(f"Successfully deleted {file_key} from S3 bucket {bucket_name}", flush=True)
+        return True
+    except Exception as e:
+        print(f"!!! S3 Deletion Error: {str(e)}", flush=True)
+        return False

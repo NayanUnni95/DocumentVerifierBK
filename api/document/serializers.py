@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from db.document import Document
+from db.activity import Activity
 from django.conf import settings
 
 
@@ -174,3 +175,25 @@ class DocumentCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data.pop('settings', None)
 
         return super().update(instance, validated_data)
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for returning activity details
+    """
+    doc_title = serializers.CharField(source='doc.title', read_only=True)
+    doc_type = serializers.CharField(source='doc.type', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'user',
+            'username',
+            'doc',
+            'doc_title',
+            'doc_type',
+            'activity_type',
+            'created_at',
+        ]

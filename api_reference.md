@@ -10,7 +10,8 @@ This document provides **working examples** for **ALL** API endpoints in the pro
 2. [Authentication](#authentication)
 3. [User Management](#user-management)
 4. [Documents](#documents)
-5. [Verification (Public)](#verification-public)
+5. [Document Activity](#document-activity)
+6. [Verification (Public)](#verification-public)
 
 ---
 
@@ -201,78 +202,212 @@ Content-Type: application/json
 
 ## Documents
 
-> **Authentication Required**: All document endpoints (except public verification) require a valid JWT access token.
+> **Authentication Required**: All document management endpoints require a valid JWT access token in the `Authorization` header.
 
-### List All Documents
+---
 
-**Description**: Retrieve all documents belonging to the authenticated user. Includes blockchain transaction hashes.
+### 1. List All Documents
 
-```bash
-GET http://localhost:8000/doc/document/
-Authorization: Bearer <your-access-token>
-```
+**Description**: Retrieve a summary list of all documents owned by the authenticated user.
 
-**Response:**
-```json
-{
-  "hasError": false,
-  "statusCode": 200,
-  "message": { "general": ["Documents retrieved successfully"] },
-  "response": [
+*   **URL**: `GET http://localhost:8000/doc/document/`
+*   **Method**: `GET`
+*   **Response**:
+    ```json
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "title": "Bachelor's Degree Certificate",
-      "type": "certificate",
-      "description": "Undergraduate degree from University XYZ",
-      "issue_at": "2022-06-15",
-      "expiry_at": null,
-      "document_hash": "a3f5b7d...",
-      "blockchain_tx_hash": "0xabc..."
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Documents retrieved successfully"] },
+      "response": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "title": "Bachelor's Degree Certificate",
+          "type": "certificate",
+          "description": "Undergraduate degree from University XYZ",
+          "issue_at": "2022-06-15",
+          "expiry_at": null,
+          "document_hash": "a3f5b7d...",
+          "blockchain_tx_hash": "0xabc..."
+        }
+      ]
     }
-  ]
-}
-```
+    ```
 
 ---
 
-### Document Insights
+### 2. Get Specific Document
 
-**Description**: Get summary statistics of user's documents and activities (verifications, shares).
+**Description**: Retrieve full details of a specific document, including settings and storage URL.
 
-```bash
-GET http://localhost:8000/doc/insight/
-Authorization: Bearer <your-access-token>
-```
-
-**Response:**
-```json
-{
-  "hasError": false,
-  "statusCode": 200,
-  "message": { "general": ["Insights retrieved successfully"] },
-  "response": {
-    "total_docs": 10,
-    "public_docs": 4,
-    "private_docs": 6,
-    "total_verification": 15,
-    "total_shared": 5
-  }
-}
-```
+*   **URL**: `GET http://localhost:8000/doc/document/<uuid:id>/`
+*   **Method**: `GET`
+*   **Response**:
+    ```json
+    {
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Documents retrieved successfully"] },
+      "response": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Bachelor Degree",
+        "type": "certificate",
+        "description": "Final degree certificate",
+        "recipient_name": "John Doe",
+        "recipient_email": "john@example.com",
+        "issuing_affiliation": "Global Tech Institute",
+        "public_view": true,
+        "allow_download": false,
+        "source_url": "https://s3.amazonaws.com/...",
+        "issue_at": "2022-06-15",
+        "expiry_at": null,
+        "document_hash": "a3f5b7d...",
+        "blockchain_tx_hash": "0xabc..."
+      }
+    }
+    ```
 
 ---
 
-### Create Document
+### 3. Create Document
 
-**Description**: Upload a new document. Automatically performs OCR, generates a content hash, and anchors it to the Polygon blockchain.
+**Description**: Upload a new document. Performs OCR, generates a hash, and anchors it to the Polygon blockchain.
 
-```bash
-POST http://localhost:8000/doc/document/
-Authorization: Bearer <your-access-token>
-Content-Type: multipart/form-data
+*   **URL**: `POST http://localhost:8000/doc/document/`
+*   **Method**: `POST`
+*   **Content-Type**: `multipart/form-data`
+*   **Body Fields**:
+    *   `title` (String, Required): Name of the document.
+    *   `type` (String, Required): Category (e.g., certificate, report, transcript).
+    *   `file` (File, Required): The document file (PDF, JPG, PNG).
+    *   `description` (String): Brief summary or notes.
+    *   `recipient_name` (String): Name of the person the document belongs to.
+    *   `recipient_email` (String): Email of the recipient.
+    *   `issuing_affiliation` (String): The organization issuing the document.
+    *   `issue_at` (Date, YYYY-MM-DD): Date of issuance.
+    *   `expiry_at` (Date, YYYY-MM-DD): Date of expiration (if any).
+    *   `public_view` (Boolean): Set to `true` to allow anyone with the link to view.
+    *   `allow_download` (Boolean): Set to `true` to allow public users to download the file.
+*   **Response**:
+    ```json
+    {
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Document created successfully with OCR"] },
+      "response": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "title": "Bachelor Degree",
+        "document_hash": "a3f5b7d...",
+        "blockchain_tx_hash": "0xabc..."
+      }
+    }
+    ```
 
-title=Certificate Name&type=certificate&file=@document.pdf
-```
+---
+
+### 4. Update Document
+
+**Description**: Update metadata or replace the file of an existing document. Supports partial updates (only fields provided will be changed).
+
+*   **URL**: `PUT http://localhost:8000/doc/document/<uuid:id>/`
+*   **Method**: `PUT`
+*   **Content-Type**: `multipart/form-data`
+*   **Body Fields**: Same as **Create Document** (all fields optional).
+*   **Example**: Change visibility and title.
+    ```bash
+    PUT http://localhost:8000/doc/document/550e8400-e29b-41d4-a716-446655440000/
+    Authorization: Bearer <your-access-token>
+    Content-Type: multipart/form-data
+
+    title=Final Bachelor Certificate&public_view=false
+    ```
+
+---
+
+### 5. Delete Document
+
+**Description**: Permanently delete a document from the system.
+
+*   **URL**: `DELETE http://localhost:8000/doc/document/<uuid:id>/`
+*   **Method**: `DELETE`
+*   **Response**:
+    ```json
+    {
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Document deleted successfully"] },
+      "response": {}
+    }
+    ```
+
+---
+
+### 6. Document Insights
+
+**Description**: Retrieve summary statistics for the user's dashboard.
+
+*   **URL**: `GET http://localhost:8000/doc/insight/`
+*   **Method**: `GET`
+*   **Response**:
+    ```json
+    {
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Insights retrieved successfully"] },
+      "response": {
+        "total_docs": 10,
+        "public_docs": 4,
+        "private_docs": 6,
+        "total_verification": 15,
+        "total_shared": 5
+      }
+    }
+    ```
+
+---
+
+## Document Activity
+
+> **Authentication Required**: Requires a valid JWT access token.
+
+### List Document Activity
+
+**Description**: Retrieve a history of activities related to the user's documents. Activities include:
+*   `upload`: When a new document is created.
+*   `check`: When a document is verified (publicly).
+*   `shared`: When a document's `public_view` setting is changed.
+
+*   **URL**: `GET http://localhost:8000/doc/activity/`
+*   **Method**: `GET`
+*   **Response**:
+    ```json
+    {
+      "hasError": false,
+      "statusCode": 200,
+      "message": { "general": ["Activities retrieved successfully"] },
+      "response": [
+        {
+          "id": "770e8400-e29b-41d4-a716-446655440001",
+          "user": "550e8400-e29b-41d4-a716-446655440000",
+          "username": "john_doe",
+          "doc": "880e8400-e29b-41d4-a716-446655440002",
+          "doc_title": "Bachelor Degree",
+          "doc_type": "certificate",
+          "activity_type": "upload",
+          "created_at": "2026-03-11T11:53:36Z"
+        },
+        {
+          "id": "770e8400-e29b-41d4-a716-446655440003",
+          "user": null,
+          "username": null,
+          "doc": "880e8400-e29b-41d4-a716-446655440002",
+          "doc_title": "Bachelor Degree",
+          "doc_type": "certificate",
+          "activity_type": "check",
+          "created_at": "2026-03-11T11:58:10Z"
+        }
+      ]
+    }
+    ```
 
 ---
 
@@ -298,9 +433,12 @@ file=@document_to_verify.pdf
   "statusCode": 200,
   "message": { "general": ["Document verified successfully"] },
   "response": {
-      "id": "550e8400...",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "title": "Verified Document",
       "type": "certificate",
+      "description": "...",
+      "issue_at": "2024-01-01",
+      "expiry_at": null,
       "document_hash": "a3f5b7d...",
       "blockchain_tx_hash": "0xabc..."
   }
@@ -311,7 +449,7 @@ file=@document_to_verify.pdf
 
 ### View Public Document by ID
 
-**Description**: View details of a specific document if its owner has set `public_view: true` in settings.
+**Description**: View details of a specific document if its owner has set `public_view: true`. No authentication required.
 
 ```bash
 GET http://localhost:8000/verify/view-document/550e8400-e29b-41d4-a716-446655440000/
@@ -324,11 +462,17 @@ GET http://localhost:8000/verify/view-document/550e8400-e29b-41d4-a716-446655440
   "statusCode": 200,
   "message": { "general": ["Document retrieved successfully"] },
   "response": {
-    "id": "550e8400...",
-    "title": "Bachelor's Degree Certificate",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "Bachelor Degree",
     "type": "certificate",
     "description": "...",
-    "source_url": "https://..."
+    "recipient_name": "John Doe",
+    "issuing_affiliation": "Global Tech Institute",
+    "public_view": true,
+    "allow_download": false,
+    "source_url": "https://...",
+    "document_hash": "a3f5b7d...",
+    "blockchain_tx_hash": "0xabc..."
   }
 }
 ```
