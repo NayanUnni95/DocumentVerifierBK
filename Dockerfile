@@ -19,7 +19,7 @@ ENV NUMEXPR_NUM_THREADS=1
 
 RUN mkdir -p /var/log/documentverifierbk && chmod 777 /var/log/documentverifierbk
 
-COPY requirements.txt .
+COPY requirements.docker.txt .
 
 RUN pip install --no-cache-dir -r requirements.docker.txt
 
