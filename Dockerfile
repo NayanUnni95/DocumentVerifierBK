@@ -21,7 +21,7 @@ RUN mkdir -p /var/log/documentverifierbk && chmod 777 /var/log/documentverifierb
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.docker.txt
 
 COPY . .
 
